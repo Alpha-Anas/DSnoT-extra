@@ -37,32 +37,76 @@ def get_wikitext2(nsamples, seed, seqlen, tokenizer):
         trainloader.append((inp, tar))
     return trainloader, testenc
 
+# # Load and process c4 dataset
+# def get_c4(nsamples, seed, seqlen, tokenizer):
+#     # Load train and validation datasets
+#     traindata = load_dataset('allenai/c4', 'allenai--c4', data_files={'train': 'en/c4-train.00000-of-01024.json.gz'}, split='train')
+#     valdata = load_dataset('allenai/c4', 'allenai--c4', data_files={'validation': 'en/c4-validation.00000-of-00008.json.gz'}, split='validation')
+    
+#     # Generate samples from training set
+#     random.seed(seed)
+#     trainloader = []
+#     for _ in range(nsamples):
+#         while True:
+#             i = random.randint(0, len(traindata) - 1)
+#             trainenc = tokenizer(traindata[i]['text'], return_tensors='pt')
+#             if trainenc.input_ids.shape[1] > seqlen:
+#                 break
+#         i = random.randint(0, trainenc.input_ids.shape[1] - seqlen - 1)
+#         j = i + seqlen
+#         inp = trainenc.input_ids[:, i:j]
+#         tar = inp.clone()
+#         tar[:, :-1] = -100
+#         trainloader.append((inp, tar))
+
+#     # Prepare validation dataset
+#     valenc = tokenizer(' '.join(valdata[:1100]['text']), return_tensors='pt')
+#     valenc = valenc.input_ids[:, :(256 * seqlen)]
+#     valenc = TokenizerWrapper(valenc)
+#     return trainloader, valenc
+
 # Load and process c4 dataset
 def get_c4(nsamples, seed, seqlen, tokenizer):
-    # Load train and validation datasets
-    traindata = load_dataset('allenai/c4', 'allenai--c4', data_files={'train': 'en/c4-train.00000-of-01024.json.gz'}, split='train')
-    valdata = load_dataset('allenai/c4', 'allenai--c4', data_files={'validation': 'en/c4-validation.00000-of-00008.json.gz'}, split='validation')
+    print("[INFO] Loading training and validation datasets...")
+    traindata = load_dataset('json', data_files='en/c4-train.00000-of-01024.json.gz', split='train')
+    valdata = load_dataset('json', data_files='en/c4-validation.00000-of-00008.json.gz', split='train')
+    print("[INFO] Datasets loaded successfully.")
     
     # Generate samples from training set
     random.seed(seed)
     trainloader = []
-    for _ in range(nsamples):
+    print(f"[INFO] Starting to generate {nsamples} training samples...")
+    
+    for sample_idx in range(nsamples):
+        # print(f"[DEBUG] Generating sample {sample_idx + 1}/{nsamples}")
         while True:
             i = random.randint(0, len(traindata) - 1)
+            # print(f"[DEBUG] Tokenizing sample from index {i}")
             trainenc = tokenizer(traindata[i]['text'], return_tensors='pt')
+            # print(f"[DEBUG] Tokenized input shape: {trainenc.input_ids.shape}")
             if trainenc.input_ids.shape[1] > seqlen:
+                # print("[DEBUG] Sequence is long enough, proceeding to slicing.")
                 break
+            else:
+                # print("[DEBUG] Sequence too short, retrying...")
+                continue
+
         i = random.randint(0, trainenc.input_ids.shape[1] - seqlen - 1)
         j = i + seqlen
         inp = trainenc.input_ids[:, i:j]
         tar = inp.clone()
         tar[:, :-1] = -100
         trainloader.append((inp, tar))
+        print(f"[DEBUG] Sample {sample_idx + 1} added. inp shape: {inp.shape}, tar shape: {tar.shape}")
 
-    # Prepare validation dataset
+    print("[INFO] All training samples generated successfully.")
+    
+    print("[INFO] Preparing validation dataset...")
     valenc = tokenizer(' '.join(valdata[:1100]['text']), return_tensors='pt')
     valenc = valenc.input_ids[:, :(256 * seqlen)]
     valenc = TokenizerWrapper(valenc)
+    # print(f"[INFO] Validation dataset shape: {valenc.data.shape}")
+    
     return trainloader, valenc
 
 # Load and process ptb dataset
